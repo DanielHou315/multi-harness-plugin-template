@@ -1,0 +1,26 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS and editor
+.DS_Store
+*.swp
+*.swo
+.vscode/
+
+# Logs and temp
+*.log
+tmp/
+temp/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Node
+node_modules/
+
+# Local agent state (AGENTS.md / CLAUDE.md are tracked on purpose)
+.cursor/
+.claude/

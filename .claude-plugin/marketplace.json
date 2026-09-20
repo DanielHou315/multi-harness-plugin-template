@@ -1,0 +1,26 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "my-plugin",
+  "version": "0.0.0",
+  "description": "Template plugin — run scripts/init_plugin.sh to rename it, then describe what the plugin does and when to use it.",
+  "owner": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  },
+  "plugins": [
+    {
+      "name": "my-plugin",
+      "source": "./",
+      "description": "Template plugin — run scripts/init_plugin.sh to rename it, then describe what the plugin does and when to use it.",
+      "version": "0.0.0",
+      "author": {
+        "name": "Your Name",
+        "email": "you@example.com"
+      },
+      "category": "developer-tools",
+      "keywords": [
+        "template"
+      ]
+    }
+  ]
+}

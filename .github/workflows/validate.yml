@@ -1,0 +1,31 @@
+name: Validate plugin
+
+# Verify the plugin on every pull request and on every push to main. The
+# validator checks both manifests (and their parity), the generated catalog
+# (including that it is not stale), component frontmatter, and referenced paths.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+          jq --version
+
+      - name: Validate plugin (Claude Code + Cursor + Codex)
+        run: bash scripts/validate_plugin.sh --strict

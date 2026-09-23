@@ -68,3 +68,9 @@ claude --plugin-dir .                # try the plugin without installing it
 See [`docs/develop_plugin.md`](docs/develop_plugin.md) for manifest fields,
 component frontmatter, optional config files (MCP, hooks, rules), and everything
 the validator checks.
+
+## Contributing
+
+Direct pushes to `main` are not accepted. Fork the repository, make your change on
+a branch in your fork, and open a pull request against `main`. CI must pass
+(`scripts/validate_plugin.sh --strict`) before a PR can be merged.

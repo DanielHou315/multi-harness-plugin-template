@@ -4,8 +4,8 @@
 #
 # Run this once, right after creating a repository from the template. It:
 #   1. writes the plugin name, display name, description, author, and version 0.1.0
-#      into both manifests (.claude-plugin/plugin.json, .cursor-plugin/plugin.json),
-#      and the category into marketplace.config.json;
+#      into all three manifests (.claude-plugin/, .cursor-plugin/, .codex-plugin/),
+#      and the category into marketplace.config.json and the Codex "interface";
 #   2. replaces the template README.md with a starter README for the plugin;
 #   3. regenerates the catalog (scripts/gen_catalog.sh);
 #   4. runs the validator (scripts/validate_plugin.sh --strict);
@@ -65,17 +65,25 @@ command -v jq >/dev/null 2>&1 || die "jq is required"
   for (i = 1; i <= NF; i++) $i = toupper(substr($i, 1, 1)) substr($i, 2); print }' OFS=' ')"
 
 # --- 1. Manifests ------------------------------------------------------------
-for manifest in "$ROOT/.claude-plugin/plugin.json" "$ROOT/.cursor-plugin/plugin.json"; do
+# Codex shows the category title-cased ("developer-tools" -> "Developer Tools").
+CATEGORY_TITLE="$(printf '%s' "$CATEGORY" | awk -F'-' '{
+  for (i = 1; i <= NF; i++) $i = toupper(substr($i, 1, 1)) substr($i, 2); print }' OFS=' ')"
+
+for manifest in "$ROOT/.claude-plugin/plugin.json" "$ROOT/.cursor-plugin/plugin.json" "$ROOT/.codex-plugin/plugin.json"; do
   [ -f "$manifest" ] || die "missing $manifest"
   tmp="$(mktemp)"
+  # Codex keeps display fields under "interface"; the other two take a top-level displayName.
   jq --arg name "$NAME" --arg display "$DISPLAY_NAME" --arg desc "$DESCRIPTION" \
-     --arg author "$AUTHOR" --arg email "$EMAIL" '
+     --arg author "$AUTHOR" --arg email "$EMAIL" --arg category "$CATEGORY_TITLE" '
     .name = $name
-    | .displayName = $display
     | .version = "0.1.0"
     | .description = $desc
     | .author = ({name: $author} + (if $email != "" then {email: $email} else {} end))
-    | .keywords = []' "$manifest" > "$tmp"
+    | .keywords = []
+    | if has("interface") then
+        .interface += {displayName: $display, shortDescription: $desc,
+                       developerName: $author, category: $category}
+      else .displayName = $display end' "$manifest" > "$tmp"
   mv "$tmp" "$manifest"
   echo "updated ${manifest#"$ROOT"/}"
 done
@@ -124,9 +132,8 @@ Add this repository in Cursor's plugin settings — it reads
 
 \`\`\`bash
 codex plugin marketplace add $REPO
+codex plugin add $NAME@$NAME
 \`\`\`
-
-Then install \`$NAME\` from the \`/plugins\` menu.
 
 ## Development
 
@@ -155,7 +162,7 @@ cat <<EOF
 
 $NAME is ready. Next:
   1. Replace the example components in skills/, commands/, and agents/.
-  2. Add keywords to both plugin.json files, then run scripts/gen_catalog.sh.
+  2. Add keywords to all three plugin.json files, then run scripts/gen_catalog.sh.
   3. Add a LICENSE that matches the "license" field in the manifests.
   4. Commit.
 EOF

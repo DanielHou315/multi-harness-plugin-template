@@ -4,10 +4,10 @@
 #
 # The repository root IS the plugin. It must load under Claude Code, Cursor, and
 # Codex from one source tree, which means:
-#   - two manifests with matching name/version:
-#       .claude-plugin/plugin.json   (Claude Code; Codex falls back to it)
+#   - three manifests with matching name/version:
+#       .claude-plugin/plugin.json   (Claude Code)
 #       .cursor-plugin/plugin.json   (Cursor)
-#     plus, optionally, .codex-plugin/plugin.json for Codex-specific metadata;
+#       .codex-plugin/plugin.json    (Codex)
 #   - shared components at the repo root (skills/, commands/, agents/, rules/);
 #   - a generated one-entry catalog, .claude-plugin/marketplace.json, that points
 #     back at the repo root so Claude Code and Codex can install the plugin.
@@ -41,9 +41,8 @@ for arg in "$@"; do
   esac
 done
 
-# Manifests every plugin must ship, and ones it may ship.
-REQUIRED_PLATFORMS=(claude cursor)
-OPTIONAL_PLATFORMS=(codex)
+# Manifests every plugin must ship.
+REQUIRED_PLATFORMS=(claude cursor codex)
 
 # --- Output helpers ----------------------------------------------------------
 if [ -t 1 ]; then
@@ -125,12 +124,19 @@ validate_frontmatter_file() {
 validate_referenced_paths() {
   local manifest="$1" platform="$2"
   local field val
-  for field in logo rules skills agents commands hooks mcpServers outputStyles; do
+  # Dotted names reach into nested objects (Codex keeps its images under "interface").
+  for field in logo rules skills agents commands hooks mcpServers outputStyles apps \
+               interface.logo interface.composerIcon interface.screenshots; do
     while IFS= read -r val; do
       [ -n "$val" ] || continue
       case "$val" in http://*|https://*) continue ;; esac
       if ! is_safe_rel "$val"; then
         err "[$platform] field \"$field\" has invalid path \"$val\"."
+        continue
+      fi
+      # Codex ignores (with only a warning) manifest paths that don't start with "./".
+      if [ "$platform" = codex ] && [[ "$val" != ./?* ]]; then
+        err "[$platform] field \"$field\" must start with \"./\" (got: \"$val\")."
         continue
       fi
       [ -e "$ROOT/$val" ] || err "[$platform] field \"$field\" references missing path \"$val\"."
@@ -140,7 +146,7 @@ validate_referenced_paths() {
         elif type=="array" then (.[] | paths_of)
         elif type=="object" then ((.path // empty), (.file // empty))
         else empty end;
-      (.[$f] // empty) | paths_of' "$manifest")
+      (getpath($f | split(".")) // empty) | paths_of' "$manifest")
   done
 }
 
@@ -180,7 +186,7 @@ validate_manifest_parity() {
   local base="$ROOT/.claude-plugin/plugin.json"
   json_valid "$base" 2>/dev/null || return
   local platform other field a b
-  for platform in cursor "${OPTIONAL_PLATFORMS[@]}"; do
+  for platform in cursor codex; do
     other="$ROOT/.${platform}-plugin/plugin.json"
     [ -f "$other" ] && json_valid "$other" || continue
     for field in name version; do
@@ -294,9 +300,6 @@ echo
 
 for platform in "${REQUIRED_PLATFORMS[@]}"; do
   validate_manifest "$platform" 1
-done
-for platform in "${OPTIONAL_PLATFORMS[@]}"; do
-  validate_manifest "$platform" 0
 done
 validate_manifest_parity
 validate_catalog

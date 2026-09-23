@@ -1,0 +1,20 @@
+{
+  "name": "my-plugin",
+  "version": "0.0.0",
+  "description": "Template plugin — run scripts/init_plugin.sh to rename it, then describe what the plugin does and when to use it.",
+  "author": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  },
+  "license": "MIT",
+  "keywords": [
+    "template"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "My Plugin",
+    "shortDescription": "Template plugin — rename with scripts/init_plugin.sh",
+    "developerName": "Your Name",
+    "category": "Developer Tools"
+  }
+}

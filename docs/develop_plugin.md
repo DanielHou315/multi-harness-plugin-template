@@ -11,10 +11,12 @@ version for coding agents.
 ```
 <plugin-repo>/
 ├── .claude-plugin/
-│   ├── plugin.json            # Claude Code manifest (Codex falls back to it)
+│   ├── plugin.json            # Claude Code manifest
 │   └── marketplace.json       # one-entry catalog — GENERATED, do not edit
 ├── .cursor-plugin/
 │   └── plugin.json            # Cursor manifest
+├── .codex-plugin/
+│   └── plugin.json            # Codex manifest
 ├── marketplace.config.json    # catalog-only fields (category)
 ├── skills/<name>/
 │   ├── SKILL.md               # model-invoked skill
@@ -34,22 +36,23 @@ version for coding agents.
 
 | | Claude Code | Cursor | Codex |
 |---|---|---|---|
-| Manifest | `.claude-plugin/plugin.json` | `.cursor-plugin/plugin.json` | `.codex-plugin/plugin.json` if present, else the Claude manifest |
+| Manifest | `.claude-plugin/plugin.json` | `.cursor-plugin/plugin.json` | `.codex-plugin/plugin.json` |
 | Installed via | catalog: `.claude-plugin/marketplace.json` | the repo itself (single-plugin repo) | the same Claude catalog |
 | Components | `skills/`, `commands/`, `agents/` | same, plus `rules/*.mdc` | `skills/` (plus hooks and MCP) |
 | MCP config | `.mcp.json` | `mcp.json` | `.mcp.json` |
 
 Because components are shared, a conformant plugin needs only:
 
-1. **Both manifests** (`.claude-plugin/plugin.json` + `.cursor-plugin/plugin.json`)
+1. **All three manifests** (`.claude-plugin/`, `.cursor-plugin/`, `.codex-plugin/`)
    with matching `name` and `version`.
 2. Components at the **repo root** (never inside the `.*-plugin/` dirs).
 3. An up-to-date generated catalog.
 
-Codex needs nothing of its own: it reads the Claude catalog, resolves
-`"source": "./"` to the repo root, and falls back to the Claude manifest. Add a
-`.codex-plugin/plugin.json` only if you want Codex-specific presentation metadata;
-the validator then holds its `name` and `version` to the same parity rule.
+Codex installs from the same Claude catalog and resolves `"source": "./"` to the
+repo root. It would fall back to the Claude manifest if `.codex-plugin/plugin.json`
+were missing, but the native manifest is required here: it names the component
+paths Codex loads (`"skills": "./skills/"`) and carries the `interface` block Codex
+uses to present the plugin.
 
 ## The catalog is a generated artifact
 
@@ -87,7 +90,7 @@ this repo needs to change.
 
 ## Manifest schema (`plugin.json`)
 
-Only `name` is strictly required, but keep both manifests parallel:
+Only `name` is strictly required, but keep all three manifests parallel:
 
 ```json
 {
@@ -107,8 +110,40 @@ Only `name` is strictly required, but keep both manifests parallel:
 - The Claude manifest also carries `$schema`
   (`https://json.schemastore.org/claude-code-plugin-manifest.json`). The Cursor
   manifest may carry an optional `logo` (a relative path that must exist).
-- Bump `version` in **both** manifests on every release, then regenerate the
+- Bump `version` in **all three** manifests on every release, then regenerate the
   catalog — installed copies only update when the version changes.
+
+### Codex manifest (`.codex-plugin/plugin.json`)
+
+Codex shares `name`, `version`, `description`, `author`, `license`, and `keywords`,
+but points at component paths explicitly and moves presentation fields under
+`interface` (it has no top-level `displayName`):
+
+```json
+{
+  "name": "doc-translator",
+  "version": "0.1.0",
+  "description": "What it does and when to use it.",
+  "author": { "name": "Your Name", "email": "you@example.com" },
+  "license": "MIT",
+  "keywords": ["docs", "translation"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Doc Translator",
+    "shortDescription": "Translate Markdown docs",
+    "developerName": "Your Name",
+    "category": "Productivity"
+  }
+}
+```
+
+- Codex loads `skills/`, `.mcp.json`, and `hooks/hooks.json` from their default
+  paths. A path field **replaces** its default rather than adding to it, and must
+  start with `./`.
+- Codex does not load `commands/` or `agents/`, so keep the real logic in skills.
+- `interface` also accepts `longDescription`, `websiteURL`, `defaultPrompt` (a
+  list of starter prompts), `brandColor`, and `logo` / `composerIcon` (relative
+  image paths, checked by the validator).
 
 ## Component frontmatter
 
@@ -139,6 +174,10 @@ Components can ship more than their entry file:
   installed plugin root. Installed plugins are copied to a cache, so absolute paths
   and `../` paths break.
 
+  Codex sets `CLAUDE_PLUGIN_ROOT` (and `PLUGIN_ROOT`) only for **hook** commands. It
+  does not substitute it in `SKILL.md` text or in `.mcp.json`. For an MCP server that
+  must run under Codex too, set `"cwd": "."` and use paths relative to the plugin root.
+
 ## Optional config files
 
 | File | Purpose |
@@ -167,10 +206,11 @@ scripts/validate_plugin.sh --strict   # treat warnings as errors (used in CI)
 
 It checks:
 
-- both manifests exist, are valid JSON, and have a well-formed `name`;
+- all three manifests exist, are valid JSON, and have a well-formed `name`;
 - `name` and `version` match across manifests (`description` mismatch is a warning);
-- referenced path fields (`logo`, `skills`, `agents`, `commands`, `hooks`, …) exist;
-- no component directory is hiding inside `.claude-plugin/` or `.cursor-plugin/`;
+- referenced path fields (`logo`, `skills`, `agents`, `commands`, `hooks`, `apps`,
+  Codex `interface.logo`, …) exist;
+- no component directory is hiding inside a `.*-plugin/` directory;
 - the catalog has an owner, exactly one entry, the right name, `"source": "./"`,
   and is not stale;
 - component frontmatter has the required keys;
@@ -197,6 +237,8 @@ claude plugin install <name>@<name>
 
 # Codex
 codex plugin marketplace add .
+codex plugin add <name>@<name>
+codex exec "Which skills from the <name> plugin can you use?"   # smoke test
 ```
 
 In Cursor, add the local folder (or the pushed repository) in the plugin settings.

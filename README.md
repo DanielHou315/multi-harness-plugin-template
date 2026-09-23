@@ -4,7 +4,7 @@ A template for building **one** agent plugin that installs in **Claude Code**,
 **Cursor**, and **Codex** from a single source tree.
 
 The repository root *is* the plugin: shared components (`skills/`, `commands/`,
-`agents/`) sit at the top level, two small manifests describe them to each harness,
+`agents/`) sit at the top level, three small manifests describe them to each harness,
 and a generated one-entry catalog makes the repo installable as a marketplace.
 One repository, one plugin — create a new repository from this template for each
 plugin you build.
@@ -31,9 +31,10 @@ Requires `bash` and [`jq`](https://jqlang.github.io/jq/).
 
 ```
 ├── .claude-plugin/
-│   ├── plugin.json            # Claude Code manifest (Codex falls back to it)
+│   ├── plugin.json            # Claude Code manifest
 │   └── marketplace.json       # one-entry catalog — GENERATED, do not edit
 ├── .cursor-plugin/plugin.json # Cursor manifest
+├── .codex-plugin/plugin.json  # Codex manifest
 ├── marketplace.config.json    # catalog-only fields (category)
 ├── skills/example-skill/SKILL.md
 ├── commands/example-command.md
@@ -51,9 +52,9 @@ Requires `bash` and [`jq`](https://jqlang.github.io/jq/).
 
 | | Claude Code | Cursor | Codex |
 |---|---|---|---|
-| Manifest | `.claude-plugin/plugin.json` | `.cursor-plugin/plugin.json` | falls back to the Claude manifest |
+| Manifest | `.claude-plugin/plugin.json` | `.cursor-plugin/plugin.json` | `.codex-plugin/plugin.json` |
 | Installed via | `.claude-plugin/marketplace.json` (`"source": "./"`) | the repo itself | the same Claude catalog |
-| Install | `claude plugin marketplace add <owner>/<repo>` then `claude plugin install <name>@<name>` | add the repo in plugin settings | `codex plugin marketplace add <owner>/<repo>` then `/plugins` |
+| Install | `claude plugin marketplace add <owner>/<repo>` then `claude plugin install <name>@<name>` | add the repo in plugin settings | `codex plugin marketplace add <owner>/<repo>` then `codex plugin add <name>@<name>` |
 
 ## Day-to-day
 

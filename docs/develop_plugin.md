@@ -17,6 +17,9 @@ version for coding agents.
 │   └── plugin.json            # Cursor manifest
 ├── .codex-plugin/
 │   └── plugin.json            # Codex manifest
+├── .opencode-plugin/
+│   ├── package.json           # opencode adapter identity (name/version parity)
+│   └── index.js               # opencode adapter — registers the shared components
 ├── marketplace.config.json    # catalog-only fields (category)
 ├── package.json               # pi package manifest ("pi" key)
 ├── skills/<name>/
@@ -92,6 +95,49 @@ Portability caveats for pi:
   relative to the skill directory.
 - Claude-only command features — `allowed-tools`, `` !`bash` `` pre-execution,
   `@file` references — are passed through as plain text by pi.
+
+### opencode
+
+opencode has no plugin marketplace and no manifest for a skills/commands/agents
+bundle — an opencode plugin is a JS module listed under `"plugin"` in
+`opencode.json` (an npm package or a local path). So instead of a fourth manifest
+the repo ships a thin adapter in `.opencode-plugin/`:
+
+- `package.json` — `name`, `version`, `description`, `author`, `license`,
+  `keywords`, plus `"type": "module"` and `"main": "./index.js"`. `name` is the
+  opencode plugin id. Keep `name`/`version` identical to the three manifests
+  (`init_plugin.sh` sets them; the validator checks them).
+- `index.js` — a dependency-free module whose `config` hook runs before opencode
+  resolves anything and points it at the shared tree. Nothing is copied or
+  generated, so there is nothing to go stale:
+
+| Shared component | Becomes in opencode | Carried over |
+|---|---|---|
+| `skills/<name>/SKILL.md` | an entry in `skills.paths` (opencode reads `SKILL.md` natively) | everything |
+| `commands/<name>.md` | `command.<name>`, body as `template` (`$ARGUMENTS`, `$1` work) | `description`, `agent`, `subtask`, `model` if `provider/model` |
+| `agents/<name>.md` | `agent.<name>`, body as `prompt` | `description`, `mode` (default `subagent`), `temperature`, `model` if `provider/model` |
+| `.mcp.json` `mcpServers` | `mcp.<name>` — stdio → `local`, `http`/`sse` → `remote` | `command`+`args`, `env`, `cwd` (relative to the plugin root), `url`, `headers` |
+
+The command/agent name is the frontmatter `name` (falling back to the file name).
+Only flat `key: value` frontmatter is read; Claude-only keys (`allowed-tools`,
+`tools`, `argument-hint`, `model: sonnet`) are dropped. In `.mcp.json` values the
+adapter expands `${CLAUDE_PLUGIN_ROOT}` / `${PLUGIN_ROOT}` to the plugin root and
+`${VAR}` / `${VAR:-default}` from the environment, as Claude Code does. Anything
+the user already defines under the same name in their own opencode config wins.
+
+Install from a clone — the adapter reads the shared tree next to it, and npm-style
+git specs in `"plugin"` can't point at a subdirectory of a repo:
+
+```bash
+git clone https://github.com/<owner>/<repo> ~/.local/share/opencode-plugins/<name>
+opencode plugin -g ~/.local/share/opencode-plugins/<name>/.opencode-plugin
+```
+
+`opencode plugin -g` records the absolute path in the global opencode config
+(`~/.config/opencode/opencode.json[c]`); without `-g` it goes into the current
+project's config. A path entry in `"plugin"` or a symlink to
+`index.js` in `~/.config/opencode/plugins/` works too. For skills only, skip the
+adapter: `"skills": {"paths": ["~/.local/share/opencode-plugins/<name>/skills"]}`.
 
 ## The catalog is a generated artifact
 
@@ -256,7 +302,10 @@ It checks:
 - config files parse, and MCP servers are declared for every harness;
 - `package.json` exists, matches the Claude manifest's `name` and `version`, has a
   `"pi"` object whose listed paths exist, maps `skills/` and `commands/`, carries
-  the `pi-package` keyword, and is not `"private": true`.
+  the `pi-package` keyword, and is not `"private": true`;
+- the opencode adapter's `package.json` exists, matches the manifests' `name` and
+  `version`, is `"type": "module"`, and its `main` exists (and passes
+  `node --check` when `node` is installed).
 
 CI runs `scripts/validate_plugin.sh --strict` on every pull request and on every
 push to `main` (`.github/workflows/validate.yml`).
@@ -299,6 +348,17 @@ the skill appears as `skill:<name>` and each command as a `prompt`:
 echo '{"type":"get_commands"}' | pi --mode rpc --no-session | jq '.data.commands[] | {name, source}'
 ```
 
+```bash
+# opencode — register the working tree for one scratch project, then inspect
+# what opencode resolved (no model calls needed)
+cd "$(mktemp -d)" && git init -q
+echo '{"plugin": ["<path-to-repo>/.opencode-plugin"]}' > opencode.json
+opencode debug skill                          # lists <skill> from skills/
+opencode debug config | jq '.command, .mcp'   # commands and MCP servers
+opencode agent list | grep subagent           # agents
+opencode mcp list                             # MCP servers connect
+```
+
 ## Documentation
 
 - [Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)
@@ -308,3 +368,4 @@ echo '{"type":"get_commands"}' | pi --mode rpc --no-session | jq '.data.commands
 - [pi packages](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md),
   [skills](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md),
   [prompt templates](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/prompt-templates.md)
+- [opencode plugins](https://opencode.ai/docs/plugins/) and [config](https://opencode.ai/docs/config/)

@@ -7,6 +7,7 @@
 #      into all three manifests (.claude-plugin/, .cursor-plugin/, .codex-plugin/),
 #      and the category into marketplace.config.json and the Codex "interface";
 #      the pi package manifest (package.json) gets the same name/version/description;
+#      the same identity goes into the opencode adapter's .opencode-plugin/package.json;
 #   2. replaces the template README.md with a starter README for the plugin;
 #   3. regenerates the catalog (scripts/gen_catalog.sh);
 #   4. runs the validator (scripts/validate_plugin.sh --strict);
@@ -102,6 +103,21 @@ jq --arg name "$NAME" --arg desc "$DESCRIPTION" --arg author "$AUTHOR" --arg ema
 mv "$tmp" "$ROOT/package.json"
 echo "updated package.json"
 
+# The opencode adapter's package.json carries the same identity (its "name" is the
+# opencode plugin id). It has no displayName or category.
+OPENCODE_PKG="$ROOT/.opencode-plugin/package.json"
+if [ -f "$OPENCODE_PKG" ]; then
+  tmp="$(mktemp)"
+  jq --arg name "$NAME" --arg desc "$DESCRIPTION" --arg author "$AUTHOR" --arg email "$EMAIL" '
+    .name = $name
+    | .version = "0.1.0"
+    | .description = $desc
+    | .author = ({name: $author} + (if $email != "" then {email: $email} else {} end))
+    | .keywords = []' "$OPENCODE_PKG" > "$tmp"
+  mv "$tmp" "$OPENCODE_PKG"
+  echo "updated .opencode-plugin/package.json"
+fi
+
 tmp="$(mktemp)"
 jq -n --arg category "$CATEGORY" '{category: $category}' > "$tmp"
 mv "$tmp" "$ROOT/marketplace.config.json"
@@ -156,6 +172,16 @@ pi install git:github.com/$REPO
 \`\`\`
 
 Skills load as-is; commands become pi prompt templates (\`/example-command\`).
+
+### opencode
+
+\`\`\`bash
+git clone https://github.com/$REPO ~/.local/share/opencode-plugins/$NAME
+opencode plugin -g ~/.local/share/opencode-plugins/$NAME/.opencode-plugin
+\`\`\`
+
+The adapter in \`.opencode-plugin/\` registers the skills, commands, agents, and
+MCP servers from the clone; \`git pull\` there to update.
 
 ## Development
 

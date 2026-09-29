@@ -8,18 +8,8 @@
   },
   "license": "MIT",
   "keywords": [
-    "pi-package",
     "template"
   ],
-  "pi": {
-    "skills": [
-      "./skills"
-    ],
-    "prompts": [
-      "./commands"
-    ]
-  },
-  "exports": {
-    "./server": "./.opencode-plugin/index.js"
-  }
+  "type": "module",
+  "main": "./index.js"
 }

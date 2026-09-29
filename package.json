@@ -18,5 +18,8 @@
     "prompts": [
       "./commands"
     ]
+  },
+  "exports": {
+    "./server": "./.opencode-plugin/index.js"
   }
 }

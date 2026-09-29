@@ -10,7 +10,9 @@
 #       .codex-plugin/plugin.json    (Codex)
 #   - shared components at the repo root (skills/, commands/, agents/, rules/);
 #   - a generated one-entry catalog, .claude-plugin/marketplace.json, that points
-#     back at the repo root so Claude Code and Codex can install the plugin.
+#     back at the repo root so Claude Code and Codex can install the plugin;
+#   - a root package.json (the pi package manifest) whose name/version match and
+#     whose "pi" key maps skills/ and commands/ for the pi coding agent.
 #
 # The per-manifest rules mirror the official Cursor validator
 # (fieldsphere/cursor-team-marketplace-template, scripts/validate-template.mjs).
@@ -236,6 +238,78 @@ validate_catalog() {
   fi
 }
 
+# --- pi package (package.json) -----------------------------------------------
+# pi (earendil-works/pi) installs "pi packages": a directory, git repo, or npm package
+# whose package.json has a "pi" key listing resource paths. The repo-root package.json
+# is that manifest. It maps the shared components onto pi's resource types:
+#   pi.skills  -> ./skills     (Agent Skills, loaded as-is)
+#   pi.prompts -> ./commands   (Claude-style commands double as pi prompt templates)
+# pi has no subagents or MCP, so agents/, rules/, and .mcp.json are not listed.
+validate_pi_package() {
+  local pkg="$ROOT/package.json"
+  info "Validating pi package (package.json)"
+
+  if [ ! -f "$pkg" ]; then
+    err "missing pi manifest (package.json) — the plugin must support every harness."
+    return
+  fi
+  if ! json_valid "$pkg"; then
+    err "[pi] package.json contains invalid JSON."
+    return
+  fi
+
+  # Parity with the Claude manifest, same rules as validate_manifest_parity.
+  local base="$ROOT/.claude-plugin/plugin.json" field a b
+  if json_valid "$base" 2>/dev/null; then
+    for field in name version; do
+      a="$(jq -r --arg f "$field" '.[$f] // empty' "$base")"
+      b="$(jq -r --arg f "$field" '.[$f] // empty' "$pkg")"
+      [ "$a" = "$b" ] || err "\"$field\" differs between manifests: claude=\"$a\" pi=\"$b\"."
+    done
+    a="$(jq -r '.description // empty' "$base")"
+    b="$(jq -r '.description // empty' "$pkg")"
+    [ "$a" = "$b" ] || warn "\"description\" differs between the claude and pi manifests."
+  fi
+
+  # "private": true would block the npm route (and the pi.dev gallery) for good.
+  [ "$(jq -r '.private // false' "$pkg")" = true ] && \
+    warn "[pi] package.json sets \"private\": true — it can never be published to npm."
+
+  # The pi-package keyword lists an npm-published package in the pi.dev/packages gallery.
+  jq -e '(.keywords // []) | index("pi-package")' "$pkg" >/dev/null 2>&1 || \
+    warn "[pi] package.json \"keywords\" should include \"pi-package\" (pi.dev gallery discovery)."
+
+  # Without a "pi" key pi falls back to auto-discovering skills/, prompts/, extensions/,
+  # and themes/ — which would miss commands/. Require the explicit mapping.
+  if ! jq -e '.pi | type == "object"' "$pkg" >/dev/null 2>&1; then
+    err "[pi] package.json needs a \"pi\" object (e.g. {\"skills\": [\"./skills\"], \"prompts\": [\"./commands\"]})."
+    return
+  fi
+
+  # Every listed path must exist. Entries may be globs or "!exclusions" — those are
+  # skipped rather than expanded.
+  local key val
+  for key in skills prompts extensions themes; do
+    while IFS= read -r val; do
+      [ -n "$val" ] || continue
+      case "$val" in '!'*|*'*'*|*'?'*|*'['*) continue ;; esac
+      if ! is_safe_rel "$val" || [[ "$val" == http* ]]; then
+        err "[pi] \"pi.$key\" has invalid path \"$val\"."
+        continue
+      fi
+      [ -e "$ROOT/$val" ] || err "[pi] \"pi.$key\" references missing path \"$val\"."
+    done < <(jq -r --arg k "$key" '.pi[$k] // empty | if type=="array" then .[] else . end | strings' "$pkg")
+  done
+
+  # Components pi would silently drop.
+  if [ -d "$ROOT/skills" ] && ! jq -e '.pi.skills' "$pkg" >/dev/null 2>&1; then
+    warn "[pi] skills/ exists but package.json \"pi.skills\" is not set — pi will not load them."
+  fi
+  if [ -d "$ROOT/commands" ] && ! jq -e '.pi.prompts' "$pkg" >/dev/null 2>&1; then
+    warn "[pi] commands/ exists but package.json \"pi.prompts\" is not set — pi will not load them."
+  fi
+}
+
 # --- Shared components (harness-agnostic) ------------------------------------
 validate_components() {
   local f
@@ -303,6 +377,7 @@ for platform in "${REQUIRED_PLATFORMS[@]}"; do
 done
 validate_manifest_parity
 validate_catalog
+validate_pi_package
 validate_components
 
 # --- Summary -----------------------------------------------------------------

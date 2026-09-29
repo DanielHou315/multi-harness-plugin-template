@@ -12,6 +12,8 @@ plugin you build.
 The same tree is also a [pi](https://github.com/earendil-works/pi) package: a root
 `package.json` maps `skills/` and `commands/` for the pi coding agent (see
 [pi](#pi) below).
+[opencode](https://opencode.ai) loads it through a small adapter in
+`.opencode-plugin/` (see [opencode](#opencode) below).
 
 ## Quick start
 
@@ -39,6 +41,7 @@ Requires `bash` and [`jq`](https://jqlang.github.io/jq/).
 │   └── marketplace.json       # one-entry catalog — GENERATED, do not edit
 ├── .cursor-plugin/plugin.json # Cursor manifest
 ├── .codex-plugin/plugin.json  # Codex manifest
+├── .opencode-plugin/          # opencode adapter (package.json + index.js)
 ├── marketplace.config.json    # catalog-only fields (category)
 ├── package.json               # pi package manifest ("pi" key)
 ├── skills/example-skill/SKILL.md
@@ -70,6 +73,19 @@ Requires `bash` and [`jq`](https://jqlang.github.io/jq/).
 | Install | `pi install git:github.com/<owner>/<repo>` (append `@<ref>` to pin) |
 | Loads | `skills/` as skills; `commands/*.md` as prompt templates (`/example-command`) |
 | Not loaded | `agents/` (no subagents), `rules/`, `.mcp.json` (no built-in MCP) |
+
+### opencode
+
+| | opencode |
+|---|---|
+| Manifest | `.opencode-plugin/package.json` (plugin id = `name`) + `index.js` adapter |
+| Installed via | a clone of the repo; the adapter's `config` hook registers the shared tree |
+| Install | `git clone https://github.com/<owner>/<repo> <dir>` then `opencode plugin -g <dir>/.opencode-plugin` |
+| Loads | `skills/` (via `skills.paths`), `commands/*.md` as commands, `agents/*.md` as subagents, `.mcp.json` servers |
+| Not loaded | `rules/`, `hooks/`; Claude-only frontmatter (`allowed-tools`, `tools`, `model: sonnet`) |
+
+`git pull` in the clone to update. Skills-only alternative, no adapter:
+`"skills": {"paths": ["<dir>/skills"]}` in `opencode.json`.
 
 ## Day-to-day
 

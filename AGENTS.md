@@ -25,6 +25,11 @@ reference: [`docs/develop_plugin.md`](docs/develop_plugin.md).
 - **Reference bundled files through `${CLAUDE_PLUGIN_ROOT}`**, e.g.
   `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/foo.py"`. Never use absolute or `../` paths.
   Codex expands it only in hook commands; see the docs for MCP servers.
+- **opencode loads the plugin through `.opencode-plugin/`** — a dependency-free
+  adapter (`index.js`) that registers the root `skills/`, `commands/`, `agents/`,
+  and `.mcp.json` at runtime. Don't copy components into it. Its `package.json`
+  `name`/`version` must match the manifests; bump it with them. Only flat
+  frontmatter keys carry over, and `model` only in `provider/model` form.
 - **MCP servers go in two files** — `.mcp.json` (Claude Code, Codex) and `mcp.json`
   (Cursor), with the same servers.
 

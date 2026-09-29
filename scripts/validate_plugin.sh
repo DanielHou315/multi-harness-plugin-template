@@ -12,7 +12,9 @@
 #   - a generated one-entry catalog, .claude-plugin/marketplace.json, that points
 #     back at the repo root so Claude Code and Codex can install the plugin;
 #   - a root package.json (the pi package manifest) whose name/version match and
-#     whose "pi" key maps skills/ and commands/ for the pi coding agent.
+#     whose "pi" key maps skills/ and commands/ for the pi coding agent;
+#   - an opencode adapter, .opencode-plugin/ (package.json + index.js), whose
+#     package name/version match the manifests above.
 #
 # The per-manifest rules mirror the official Cursor validator
 # (fieldsphere/cursor-team-marketplace-template, scripts/validate-template.mjs).
@@ -202,6 +204,63 @@ validate_manifest_parity() {
   done
 }
 
+# --- opencode adapter (.opencode-plugin/) -----------------------------------
+# opencode has no plugin manifest; it loads JS plugin modules. .opencode-plugin/
+# holds a dependency-free adapter (index.js) whose config hook registers the shared
+# skills/, commands/, agents/, and .mcp.json with opencode. Its package.json plays
+# the manifest role: opencode uses "name" as the plugin id and "main" as the entry.
+validate_opencode_plugin() {
+  local dir=".opencode-plugin"
+  local pkg="$ROOT/$dir/package.json"
+
+  if [ ! -f "$pkg" ]; then
+    err "missing opencode adapter ($dir/package.json) — the plugin must support every harness."
+    return
+  fi
+  info "Validating opencode adapter ($dir/package.json)"
+  if ! json_valid "$pkg"; then
+    err "[opencode] $dir/package.json contains invalid JSON."
+    return
+  fi
+
+  local name main field a b
+  name="$(jq -r '.name // empty' "$pkg")"
+  [[ "$name" =~ $PLUGIN_NAME_RE ]] || \
+    err "[opencode] \"name\" must be lowercase alphanumerics/hyphens/periods (got: \"${name:-<missing>}\")."
+
+  # Parity with the Claude manifest, like the other harness manifests.
+  if json_valid "$ROOT/.claude-plugin/plugin.json" 2>/dev/null; then
+    for field in name version; do
+      a="$(jq -r --arg f "$field" '.[$f] // empty' "$ROOT/.claude-plugin/plugin.json")"
+      b="$(jq -r --arg f "$field" '.[$f] // empty' "$pkg")"
+      [ "$a" = "$b" ] || err "\"$field\" differs between manifests: claude=\"$a\" opencode=\"$b\"."
+    done
+    a="$(jq -r '.description // empty' "$ROOT/.claude-plugin/plugin.json")"
+    b="$(jq -r '.description // empty' "$pkg")"
+    [ "$a" = "$b" ] || warn "\"description\" differs between the claude manifest and $dir/package.json."
+  fi
+
+  # index.js uses import/export, so the package must be an ES module.
+  [ "$(jq -r '.type // empty' "$pkg")" = module ] || err "[opencode] $dir/package.json must set \"type\": \"module\"."
+
+  main="$(jq -r '.main // empty' "$pkg")"
+  if [ -z "$main" ]; then
+    err "[opencode] $dir/package.json needs \"main\" (the adapter entry, e.g. \"./index.js\")."
+  elif ! is_safe_rel "$main"; then
+    err "[opencode] \"main\" has invalid path \"$main\"."
+  elif [ ! -f "$ROOT/$dir/$main" ]; then
+    err "[opencode] \"main\" references missing file \"$dir/${main#./}\"."
+  elif command -v node >/dev/null 2>&1; then
+    # Syntax check only; the module is not executed. Skipped when node is absent.
+    node --check "$ROOT/$dir/$main" 2>/dev/null || err "[opencode] $dir/${main#./} has a syntax error (node --check)."
+  fi
+
+  local comp
+  for comp in skills commands agents rules hooks; do
+    [ -e "$ROOT/$dir/$comp" ] && err "[opencode] $dir/$comp is inside the adapter directory — move it to the repo root."
+  done
+}
+
 # --- Catalog (.claude-plugin/marketplace.json, generated) --------------------
 validate_catalog() {
   local mk="$ROOT/.claude-plugin/marketplace.json"
@@ -376,6 +435,7 @@ for platform in "${REQUIRED_PLATFORMS[@]}"; do
   validate_manifest "$platform" 1
 done
 validate_manifest_parity
+validate_opencode_plugin
 validate_catalog
 validate_pi_package
 validate_components

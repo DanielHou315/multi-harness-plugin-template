@@ -259,6 +259,19 @@ validate_opencode_plugin() {
   for comp in skills commands agents rules hooks; do
     [ -e "$ROOT/$dir/$comp" ] && err "[opencode] $dir/$comp is inside the adapter directory — move it to the repo root."
   done
+
+  # Remote install (`opencode plugin github:<owner>/<repo>`) installs the whole repo
+  # as an npm package; opencode finds the server entry via the ROOT package.json's
+  # exports["./server"]. (The root package.json is also the pi manifest.)
+  local root_pkg="$ROOT/package.json" server
+  if [ -f "$root_pkg" ] && json_valid "$root_pkg"; then
+    server="$(jq -r '.exports["./server"] // empty | if type=="string" then . else (.import // .default // empty) end' "$root_pkg")"
+    if [ -z "$server" ]; then
+      warn "[opencode] package.json has no exports[\"./server\"] — \`opencode plugin github:<owner>/<repo>\` will not find the adapter (expected \"./$dir/${main#./}\")."
+    elif [ -n "$main" ] && [ "${server#./}" != "$dir/${main#./}" ]; then
+      err "[opencode] package.json exports[\"./server\"] is \"$server\" but the adapter entry is \"./$dir/${main#./}\"."
+    fi
+  fi
 }
 
 # --- Catalog (.claude-plugin/marketplace.json, generated) --------------------

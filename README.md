@@ -24,7 +24,7 @@ plugin you build.
 | Cursor | `.cursor-plugin/plugin.json` | skills, commands, agents, `rules/*.mdc`, `mcp.json` | the repo |
 | Codex | `.codex-plugin/plugin.json` | skills, hooks, `.mcp.json` | the same marketplace |
 | [pi](https://github.com/earendil-works/pi) | `package.json` (`"pi"` key) | skills, commands (as prompt templates) | `pi install git:…` |
-| [opencode](https://opencode.ai) | `.opencode-plugin/` adapter | skills, commands, agents, `.mcp.json` | a local clone |
+| [opencode](https://opencode.ai) | `.opencode-plugin/` adapter | skills, commands, agents, `.mcp.json` | `opencode plugin github:…` |
 
 Exact install commands and per-harness caveats are in
 [How one tree serves three harnesses](#how-one-tree-serves-three-harnesses),
@@ -94,12 +94,13 @@ Requires `bash` and [`jq`](https://jqlang.github.io/jq/).
 | | opencode |
 |---|---|
 | Manifest | `.opencode-plugin/package.json` (plugin id = `name`) + `index.js` adapter |
-| Installed via | a clone of the repo; the adapter's `config` hook registers the shared tree |
-| Install | `git clone https://github.com/<owner>/<repo> <dir>` then `opencode plugin -g <dir>/.opencode-plugin` |
+| Installed via | the repo as a git package (root `package.json` `exports["./server"]` → the adapter), or a local clone |
+| Install | `opencode plugin -g github:<owner>/<repo>` (append `#<ref>` to pin) |
 | Loads | `skills/` (via `skills.paths`), `commands/*.md` as commands, `agents/*.md` as subagents, `.mcp.json` servers |
 | Not loaded | `rules/`, `hooks/`; Claude-only frontmatter (`allowed-tools`, `tools`, `model: sonnet`) |
 
-`git pull` in the clone to update. Skills-only alternative, no adapter:
+From a local clone instead: `opencode plugin -g <dir>/.opencode-plugin` (then
+`git pull` there to update). Skills-only alternative, no adapter:
 `"skills": {"paths": ["<dir>/skills"]}` in `opencode.json`.
 
 ## Day-to-day

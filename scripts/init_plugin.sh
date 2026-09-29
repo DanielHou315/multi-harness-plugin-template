@@ -177,12 +177,11 @@ Skills load as-is; commands become pi prompt templates (\`/example-command\`).
 ### opencode
 
 \`\`\`bash
-git clone https://github.com/$REPO ~/.local/share/opencode-plugins/$NAME
-opencode plugin -g ~/.local/share/opencode-plugins/$NAME/.opencode-plugin
+opencode plugin -g github:$REPO
 \`\`\`
 
 The adapter in \`.opencode-plugin/\` registers the skills, commands, agents, and
-MCP servers from the clone; \`git pull\` there to update.
+MCP servers. Append \`#<tag>\` to pin a version.
 
 ## Development
 

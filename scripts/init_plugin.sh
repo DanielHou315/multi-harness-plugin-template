@@ -134,7 +134,8 @@ cat > "$ROOT/README.md" <<EOF
 
 $DESCRIPTION
 
-One source tree, installable in **Claude Code**, **Cursor**, and **Codex**.
+An agent plugin with one source tree, installable in **Claude Code**, **Cursor**,
+**Codex**, **pi**, and **opencode**.
 
 ## Components
 
@@ -191,6 +192,10 @@ See [\`docs/develop_plugin.md\`](docs/develop_plugin.md). Before every commit:
 scripts/gen_catalog.sh               # after editing a plugin.json
 scripts/validate_plugin.sh --strict
 \`\`\`
+
+---
+
+Built with [multi-harness-plugin-template](https://github.com/DanielHou315/multi-harness-plugin-template).
 EOF
 echo "wrote README.md"
 
@@ -214,4 +219,6 @@ $NAME is ready. Next:
      "pi-package"), then run scripts/gen_catalog.sh.
   3. Add a LICENSE that matches the "license" field in the manifests.
   4. Commit.
+  5. Optional, for discoverability: add GitHub topics, e.g.
+     gh repo edit --add-topic claude-code-plugin,agent-skills,cursor-plugin,codex-plugin,pi-package
 EOF

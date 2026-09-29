@@ -1,19 +1,34 @@
 # multi-harness-plugin-template
 
-A template for building **one** agent plugin that installs in **Claude Code**,
-**Cursor**, and **Codex** from a single source tree.
+[![Validate plugin](https://github.com/DanielHou315/multi-harness-plugin-template/actions/workflows/validate.yml/badge.svg)](https://github.com/DanielHou315/multi-harness-plugin-template/actions/workflows/validate.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Use this template](https://img.shields.io/badge/-Use%20this%20template-2ea44f?logo=github)](https://github.com/DanielHou315/multi-harness-plugin-template/generate)
+
+**A Claude Code plugin template that also ships as a Cursor plugin, a Codex plugin,
+a pi package, and an opencode plugin — from one source tree.** Write your
+[Agent Skills](https://agentskills.io) (`SKILL.md`), slash commands, subagents, and
+MCP servers once; the repo is its own one-plugin marketplace, and a validator in CI
+keeps the manifests in sync.
 
 The repository root *is* the plugin: shared components (`skills/`, `commands/`,
-`agents/`) sit at the top level, three small manifests describe them to each harness,
-and a generated one-entry catalog makes the repo installable as a marketplace.
+`agents/`) sit at the top level, a small manifest per harness describes them, and a
+generated one-entry catalog makes the repo installable as a marketplace.
 One repository, one plugin — create a new repository from this template for each
 plugin you build.
 
-The same tree is also a [pi](https://github.com/earendil-works/pi) package: a root
-`package.json` maps `skills/` and `commands/` for the pi coding agent (see
-[pi](#pi) below).
-[opencode](https://opencode.ai) loads it through a small adapter in
-`.opencode-plugin/` (see [opencode](#opencode) below).
+### Supported harnesses
+
+| Harness | Manifest | Loads | Install from |
+|---|---|---|---|
+| Claude Code | `.claude-plugin/plugin.json` | skills, commands, agents, hooks, `.mcp.json` | the repo as a marketplace |
+| Cursor | `.cursor-plugin/plugin.json` | skills, commands, agents, `rules/*.mdc`, `mcp.json` | the repo |
+| Codex | `.codex-plugin/plugin.json` | skills, hooks, `.mcp.json` | the same marketplace |
+| [pi](https://github.com/earendil-works/pi) | `package.json` (`"pi"` key) | skills, commands (as prompt templates) | `pi install git:…` |
+| [opencode](https://opencode.ai) | `.opencode-plugin/` adapter | skills, commands, agents, `.mcp.json` | a local clone |
+
+Exact install commands and per-harness caveats are in
+[How one tree serves three harnesses](#how-one-tree-serves-three-harnesses),
+[pi](#pi), and [opencode](#opencode) below.
 
 ## Quick start
 
@@ -105,3 +120,36 @@ the validator checks.
 Direct pushes to `main` are not accepted. Fork the repository, make your change on
 a branch in your fork, and open a pull request against `main`. CI must pass
 (`scripts/validate_plugin.sh --strict`) before a PR can be merged.
+
+## FAQ
+
+### How do I make a Claude Code plugin that also works in Cursor and Codex?
+
+Create a repository from this template and run `scripts/init_plugin.sh`. All three
+harnesses read the same `skills/`, `commands/`, and `agents/` directories; each
+only needs its own small manifest (`.claude-plugin/`, `.cursor-plugin/`,
+`.codex-plugin/`), which the init script fills in and the validator keeps in sync.
+Codex installs from the same `marketplace.json` as Claude Code.
+
+### Can I publish Agent Skills (`SKILL.md`) this way without writing a full plugin?
+
+Yes. A plugin with only a `skills/` directory is valid — delete the example command
+and agent. The skills load in every harness above, including pi and opencode.
+
+### Do I need a separate marketplace repository?
+
+No. `scripts/gen_catalog.sh` generates a one-entry `.claude-plugin/marketplace.json`
+pointing at the repo root (`"source": "./"`), so `claude plugin marketplace add
+<owner>/<repo>` (or `codex plugin marketplace add`) works on the plugin repo itself.
+
+### How do I add an MCP server?
+
+Declare it in `.mcp.json` (Claude Code, Codex, opencode) and the same servers in
+`mcp.json` (Cursor). See [`docs/develop_plugin.md`](docs/develop_plugin.md) for
+`${CLAUDE_PLUGIN_ROOT}` handling in each harness. pi has no built-in MCP support.
+
+### How do I keep the manifests from drifting?
+
+Run `scripts/validate_plugin.sh --strict` before committing; the included GitHub
+Actions workflow runs it on every pull request. It checks name/version parity across
+all manifests, frontmatter on every component, and that the catalog isn't stale.

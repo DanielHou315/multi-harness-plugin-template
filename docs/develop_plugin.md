@@ -18,6 +18,7 @@ version for coding agents.
 ├── .codex-plugin/
 │   └── plugin.json            # Codex manifest
 ├── marketplace.config.json    # catalog-only fields (category)
+├── package.json               # pi package manifest ("pi" key)
 ├── skills/<name>/
 │   ├── SKILL.md               # model-invoked skill
 │   └── references/*.md        # optional files the skill bundles
@@ -53,6 +54,44 @@ repo root. It would fall back to the Claude manifest if `.codex-plugin/plugin.js
 were missing, but the native manifest is required here: it names the component
 paths Codex loads (`"skills": "./skills/"`) and carries the `interface` block Codex
 uses to present the plugin.
+
+### pi (`package.json`)
+
+[pi](https://github.com/earendil-works/pi) (`@earendil-works/pi-coding-agent`)
+installs *pi packages*: a local directory, a git repository, or an npm package whose
+`package.json` carries a `"pi"` key listing resource paths. The repo-root
+`package.json` is that manifest, so the repo installs straight from GitHub:
+
+```bash
+pi install git:github.com/<owner>/<repo>          # or @<tag|commit> to pin
+pi install ./path/to/checkout                     # local, loaded in place
+```
+
+| Shared component | pi resource | Notes |
+|---|---|---|
+| `skills/<name>/SKILL.md` | skill (`pi.skills`) | pi implements the Agent Skills spec; also invocable as `/skill:<name>`. |
+| `commands/<name>.md` | prompt template (`pi.prompts`) | Filename is the command name; pi reads `description` and `argument-hint`, ignores `name`, and substitutes `$ARGUMENTS`, `$@`, `$1`, `${1:-default}`. |
+| `agents/<name>.md` | — | pi has no subagent concept. |
+| `.mcp.json` / `mcp.json` | — | pi has no built-in MCP client (community adapters exist). |
+| `rules/*.mdc` | — | Cursor only. |
+
+The `"pi"` key is required: without it pi auto-discovers only `skills/`,
+`prompts/`, `extensions/`, and `themes/`, and would miss `commands/`. Paths are
+relative to the repo root and may be globs or `!exclusions`. To add pi-only
+resources later, create e.g. `extensions/*.ts` or `themes/*.json` and list them
+under `pi.extensions` / `pi.themes`.
+
+Keep the `pi-package` keyword: if you ever publish to npm, it lists the package in
+the [pi.dev/packages](https://pi.dev/packages) gallery (`pi install npm:<name>`).
+Do not set `"private": true`. Publishing is optional — git installs need nothing more.
+
+Portability caveats for pi:
+
+- `${CLAUDE_PLUGIN_ROOT}` is **not** expanded in skills or prompt templates. pi
+  tells the model where a skill lives, so reference bundled files by paths
+  relative to the skill directory.
+- Claude-only command features — `allowed-tools`, `` !`bash` `` pre-execution,
+  `@file` references — are passed through as plain text by pi.
 
 ## The catalog is a generated artifact
 
@@ -214,7 +253,10 @@ It checks:
 - the catalog has an owner, exactly one entry, the right name, `"source": "./"`,
   and is not stale;
 - component frontmatter has the required keys;
-- config files parse, and MCP servers are declared for every harness.
+- config files parse, and MCP servers are declared for every harness;
+- `package.json` exists, matches the Claude manifest's `name` and `version`, has a
+  `"pi"` object whose listed paths exist, maps `skills/` and `commands/`, carries
+  the `pi-package` keyword, and is not `"private": true`.
 
 CI runs `scripts/validate_plugin.sh --strict` on every pull request and on every
 push to `main` (`.github/workflows/validate.yml`).
@@ -243,9 +285,26 @@ codex exec "Which skills from the <name> plugin can you use?"   # smoke test
 
 In Cursor, add the local folder (or the pushed repository) in the plugin settings.
 
+```bash
+# pi — installs into ~/.pi/agent/settings.json (add -l for .pi/settings.json)
+pi install .
+pi list
+pi remove .
+```
+
+For a check that makes no LLM call, ask pi's RPC mode which commands it resolved;
+the skill appears as `skill:<name>` and each command as a `prompt`:
+
+```bash
+echo '{"type":"get_commands"}' | pi --mode rpc --no-session | jq '.data.commands[] | {name, source}'
+```
+
 ## Documentation
 
 - [Claude Code plugin reference](https://code.claude.com/docs/en/plugins-reference)
 - [Claude Code marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
 - [Cursor plugins](https://cursor.com/docs/plugins/building)
 - [Codex plugins](https://developers.openai.com/codex/plugins/build)
+- [pi packages](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/packages.md),
+  [skills](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md),
+  [prompt templates](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/prompt-templates.md)

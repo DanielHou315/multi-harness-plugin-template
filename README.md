@@ -9,6 +9,10 @@ and a generated one-entry catalog makes the repo installable as a marketplace.
 One repository, one plugin — create a new repository from this template for each
 plugin you build.
 
+The same tree is also a [pi](https://github.com/earendil-works/pi) package: a root
+`package.json` maps `skills/` and `commands/` for the pi coding agent (see
+[pi](#pi) below).
+
 ## Quick start
 
 1. Click **Use this template** on GitHub (or
@@ -36,6 +40,7 @@ Requires `bash` and [`jq`](https://jqlang.github.io/jq/).
 ├── .cursor-plugin/plugin.json # Cursor manifest
 ├── .codex-plugin/plugin.json  # Codex manifest
 ├── marketplace.config.json    # catalog-only fields (category)
+├── package.json               # pi package manifest ("pi" key)
 ├── skills/example-skill/SKILL.md
 ├── commands/example-command.md
 ├── agents/example-agent.md
@@ -55,6 +60,16 @@ Requires `bash` and [`jq`](https://jqlang.github.io/jq/).
 | Manifest | `.claude-plugin/plugin.json` | `.cursor-plugin/plugin.json` | `.codex-plugin/plugin.json` |
 | Installed via | `.claude-plugin/marketplace.json` (`"source": "./"`) | the repo itself | the same Claude catalog |
 | Install | `claude plugin marketplace add <owner>/<repo>` then `claude plugin install <name>@<name>` | add the repo in plugin settings | `codex plugin marketplace add <owner>/<repo>` then `codex plugin add <name>@<name>` |
+
+### pi
+
+| | pi coding agent |
+|---|---|
+| Manifest | `package.json` (the `"pi"` key) |
+| Installed via | the repo itself as a pi package (git, npm, or local path) |
+| Install | `pi install git:github.com/<owner>/<repo>` (append `@<ref>` to pin) |
+| Loads | `skills/` as skills; `commands/*.md` as prompt templates (`/example-command`) |
+| Not loaded | `agents/` (no subagents), `rules/`, `.mcp.json` (no built-in MCP) |
 
 ## Day-to-day
 

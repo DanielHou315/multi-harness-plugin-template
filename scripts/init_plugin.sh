@@ -6,6 +6,7 @@
 #   1. writes the plugin name, display name, description, author, and version 0.1.0
 #      into all three manifests (.claude-plugin/, .cursor-plugin/, .codex-plugin/),
 #      and the category into marketplace.config.json and the Codex "interface";
+#      the pi package manifest (package.json) gets the same name/version/description;
 #   2. replaces the template README.md with a starter README for the plugin;
 #   3. regenerates the catalog (scripts/gen_catalog.sh);
 #   4. runs the validator (scripts/validate_plugin.sh --strict);
@@ -88,6 +89,19 @@ for manifest in "$ROOT/.claude-plugin/plugin.json" "$ROOT/.cursor-plugin/plugin.
   echo "updated ${manifest#"$ROOT"/}"
 done
 
+# pi reads the repo-root package.json. Only the npm/package fields change; the "pi"
+# resource map and the "pi-package" keyword (pi.dev gallery discovery) are kept.
+[ -f "$ROOT/package.json" ] || die "missing $ROOT/package.json"
+tmp="$(mktemp)"
+jq --arg name "$NAME" --arg desc "$DESCRIPTION" --arg author "$AUTHOR" --arg email "$EMAIL" '
+  .name = $name
+  | .version = "0.1.0"
+  | .description = $desc
+  | .author = ({name: $author} + (if $email != "" then {email: $email} else {} end))
+  | .keywords = ["pi-package"]' "$ROOT/package.json" > "$tmp"
+mv "$tmp" "$ROOT/package.json"
+echo "updated package.json"
+
 tmp="$(mktemp)"
 jq -n --arg category "$CATEGORY" '{category: $category}' > "$tmp"
 mv "$tmp" "$ROOT/marketplace.config.json"
@@ -135,6 +149,14 @@ codex plugin marketplace add $REPO
 codex plugin add $NAME@$NAME
 \`\`\`
 
+### pi
+
+\`\`\`bash
+pi install git:github.com/$REPO
+\`\`\`
+
+Skills load as-is; commands become pi prompt templates (\`/example-command\`).
+
 ## Development
 
 See [\`docs/develop_plugin.md\`](docs/develop_plugin.md). Before every commit:
@@ -162,7 +184,8 @@ cat <<EOF
 
 $NAME is ready. Next:
   1. Replace the example components in skills/, commands/, and agents/.
-  2. Add keywords to all three plugin.json files, then run scripts/gen_catalog.sh.
+  2. Add keywords to all three plugin.json files (and package.json, keeping
+     "pi-package"), then run scripts/gen_catalog.sh.
   3. Add a LICENSE that matches the "license" field in the manifests.
   4. Commit.
 EOF

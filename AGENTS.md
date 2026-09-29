@@ -15,6 +15,10 @@ reference: [`docs/develop_plugin.md`](docs/develop_plugin.md).
   `.cursor-plugin/plugin.json`, and `.codex-plugin/plugin.json`. `name` and
   `version` must match; bump all three together. Codex puts display fields
   (`displayName`, `category`, …) under `interface`.
+- **`package.json` is the pi manifest** — its `name`, `version`, and `description`
+  track the other manifests; its `"pi"` key maps `skills` → `./skills` and
+  `prompts` → `./commands`. Keep the `pi-package` keyword. Commands must stay
+  plain Markdown + `$ARGUMENTS`/`$1` to work as pi prompt templates.
 - **`.claude-plugin/marketplace.json` is generated** — never edit it. Change
   `.claude-plugin/plugin.json` (or `marketplace.config.json`, which holds the
   catalog-only `category`), then run `scripts/gen_catalog.sh`.

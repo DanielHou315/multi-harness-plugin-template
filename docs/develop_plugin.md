@@ -125,18 +125,27 @@ adapter expands `${CLAUDE_PLUGIN_ROOT}` / `${PLUGIN_ROOT}` to the plugin root an
 `${VAR}` / `${VAR:-default}` from the environment, as Claude Code does. Anything
 the user already defines under the same name in their own opencode config wins.
 
-Install from a clone — the adapter reads the shared tree next to it, and npm-style
-git specs in `"plugin"` can't point at a subdirectory of a repo:
+opencode installs `"plugin"` entries with npm, so a git spec installs the whole
+repo as a package. The repo-root `package.json` (shared with pi) points opencode
+at the adapter through `"exports": {"./server": "./.opencode-plugin/index.js"}`;
+opencode prefers `exports["./server"]` over `main`, and pi ignores both. The
+adapter then finds `skills/`, `commands/`, … next to itself inside the installed
+package:
 
 ```bash
-git clone https://github.com/<owner>/<repo> ~/.local/share/opencode-plugins/<name>
-opencode plugin -g ~/.local/share/opencode-plugins/<name>/.opencode-plugin
+opencode plugin -g github:<owner>/<repo>          # or #<tag|commit> to pin
 ```
 
-`opencode plugin -g` records the absolute path in the global opencode config
+`opencode plugin -g` adds the spec to the global opencode config
 (`~/.config/opencode/opencode.json[c]`); without `-g` it goes into the current
-project's config. A path entry in `"plugin"` or a symlink to
-`index.js` in `~/.config/opencode/plugins/` works too. For skills only, skip the
+project's config. Writing `"plugin": ["github:<owner>/<repo>"]` by hand is
+equivalent; opencode installs it on the next start into
+`~/.cache/opencode/packages/`. Keep the root `package.json` free of `"private": true`
+and of a `files` list that would drop `.opencode-plugin/` or the components.
+
+From a local clone (e.g. for development), point opencode at the adapter
+directory: `opencode plugin -g <clone>/.opencode-plugin`. A path entry in
+`"plugin"` or a symlink to `index.js` in `~/.config/opencode/plugins/` works too. For skills only, skip the
 adapter: `"skills": {"paths": ["~/.local/share/opencode-plugins/<name>/skills"]}`.
 
 ## The catalog is a generated artifact
@@ -305,7 +314,8 @@ It checks:
   the `pi-package` keyword, and is not `"private": true`;
 - the opencode adapter's `package.json` exists, matches the manifests' `name` and
   `version`, is `"type": "module"`, and its `main` exists (and passes
-  `node --check` when `node` is installed).
+  `node --check` when `node` is installed); the root `package.json` maps
+  `exports["./server"]` to that entry, so `opencode plugin github:…` works.
 
 CI runs `scripts/validate_plugin.sh --strict` on every pull request and on every
 push to `main` (`.github/workflows/validate.yml`).

@@ -67,7 +67,7 @@ Requires `bash` and [`jq`](https://jqlang.github.io/jq/).
 │   ├── gen_catalog.sh         # regenerates the catalog from plugin.json
 │   └── validate_plugin.sh     # the validator (CI + local)
 ├── docs/develop_plugin.md     # full structure reference
-├── AGENTS.md / CLAUDE.md      # rules for coding agents working on the plugin
+├── AGENTS.md                  # rules for coding agents working on the plugin
 └── .github/workflows/validate.yml
 ```
 

@@ -32,7 +32,7 @@ version for coding agents.
 │   ├── validate_plugin.sh     # the validator (CI + local)
 │   └── *                      # your own helper scripts (see ${CLAUDE_PLUGIN_ROOT})
 ├── docs/develop_plugin.md     # this file
-├── AGENTS.md / CLAUDE.md      # instructions for agents working on the plugin
+├── AGENTS.md                  # instructions for agents working on the plugin
 └── .github/workflows/validate.yml
 ```
 

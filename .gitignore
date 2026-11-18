@@ -21,6 +21,6 @@ __pycache__/
 # Node
 node_modules/
 
-# Local agent state (AGENTS.md / CLAUDE.md are tracked on purpose)
+# Local agent state (AGENTS.md is tracked on purpose)
 .cursor/
 .claude/
